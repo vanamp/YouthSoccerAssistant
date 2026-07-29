@@ -201,6 +201,30 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
     );
   };
 
+  const handleDownloadLineup = () => {
+    let csvContent = "Quarter,Position,Player\n";
+    
+    const sortedLineups = [...lineups].sort((a, b) => {
+      if (a.quarter !== b.quarter) return a.quarter - b.quarter;
+      return a.position.localeCompare(b.position);
+    });
+
+    sortedLineups.forEach(l => {
+      const player = players.find(p => p.id === l.player_id);
+      const playerName = player ? player.name.replace(/,/g, '') : "Empty"; // sanitize commas
+      csvContent += `${l.quarter},${l.position},${playerName}\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `game_lineups.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (authLoading || isLoading) {
     return <div style={{ padding: '4rem', textAlign: 'center' }}>Loading Game Dashboard...</div>;
   }
@@ -209,7 +233,10 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
     <div className="animate-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2.5rem' }}>Game Dashboard</h1>
-        <Button onClick={() => setIsFinishModalOpen(true)} variant="primary">Finish Game</Button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button onClick={handleDownloadLineup} variant="ghost">Download Lineup</Button>
+          <Button onClick={() => setIsFinishModalOpen(true)} variant="primary">Finish Game</Button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '2rem' }}>
