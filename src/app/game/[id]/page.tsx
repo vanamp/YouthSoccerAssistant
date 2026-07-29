@@ -1,42 +1,59 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, Button, Toggle } from '@/components/ui';
-import { Player, GameAttendance, Lineup } from '@/lib/supabase';
+import { Player, GameAttendance, Lineup, supabase } from '@/lib/supabase';
 import { generateLineupForQuarter, recalculateRemainingQuarters } from '@/lib/lineupGenerator';
-
-// Mock Data
-const mockPlayers: Player[] = [
-  { id: '1', name: 'Alex Johnson', skill_offense: 8, skill_defense: 5, skill_goalie: 3, is_active: true },
-  { id: '2', name: 'Maria Garcia', skill_offense: 9, skill_defense: 4, skill_goalie: 2, is_active: true },
-  { id: '3', name: 'James Smith', skill_offense: 6, skill_defense: 8, skill_goalie: 5, is_active: true },
-  { id: '4', name: 'Linda Davis', skill_offense: 4, skill_defense: 9, skill_goalie: 9, is_active: true },
-  { id: '5', name: 'Robert Chen', skill_offense: 7, skill_defense: 7, skill_goalie: 1, is_active: true },
-  { id: '6', name: 'Emily White', skill_offense: 5, skill_defense: 8, skill_goalie: 6, is_active: true },
-  { id: '7', name: 'Michael Brown', skill_offense: 8, skill_defense: 6, skill_goalie: 2, is_active: true },
-  { id: '8', name: 'Sarah Wilson', skill_offense: 6, skill_defense: 7, skill_goalie: 8, is_active: true },
-  { id: '9', name: 'David Lee', skill_offense: 9, skill_defense: 3, skill_goalie: 1, is_active: true },
-];
+import { useAuth } from '@/components/AuthProvider';
 
 export default function LiveGameDashboard({ params }: { params: { id: string } }) {
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+  
   const gameId = params.id;
   
   const [activeTab, setActiveTab] = useState<number>(1);
-  const [attendance, setAttendance] = useState<GameAttendance[]>(
-    mockPlayers.map(p => ({ game_id: gameId, player_id: p.id, is_present: true, arrived_quarter: 1 }))
-  );
-  
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [attendance, setAttendance] = useState<GameAttendance[]>([]);
   const [lineups, setLineups] = useState<Lineup[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Swap state
   const [selectedForSwap, setSelectedForSwap] = useState<Lineup | null>(null);
 
-  // Generate initial lineups for all 4 quarters on load
   useEffect(() => {
-    const initialLineups = recalculateRemainingQuarters(gameId, mockPlayers, attendance, [], 1, []);
-    setLineups(initialLineups);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      const fetchInitialData = async () => {
+        setIsLoading(true);
+        // Fetch players
+        const { data: playersData } = await supabase.from('players').select('*').eq('is_active', true);
+        const activePlayers = playersData || [];
+        setPlayers(activePlayers);
+        
+        // Initial attendance
+        const initialAtt = activePlayers.map(p => ({ 
+          game_id: gameId, 
+          player_id: p.id, 
+          is_present: true, 
+          arrived_quarter: 1 
+        }));
+        setAttendance(initialAtt);
+
+        // Generate initial lineups
+        const initialLineups = recalculateRemainingQuarters(gameId, activePlayers, initialAtt, [], 1, []);
+        setLineups(initialLineups);
+        setIsLoading(false);
+      };
+      
+      fetchInitialData();
+    }
+  }, [authLoading, user, gameId]);
 
   const handleAttendanceChange = (playerId: string, isPresent: boolean) => {
     const newAtt = attendance.map(a => 
@@ -45,7 +62,7 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
     setAttendance(newAtt);
     
     // Recalculate remaining quarters
-    const futureLineups = recalculateRemainingQuarters(gameId, mockPlayers, newAtt, [], activeTab, lineups);
+    const futureLineups = recalculateRemainingQuarters(gameId, players, newAtt, [], activeTab, lineups);
     
     // Merge
     setLineups([...lineups.filter(l => l.quarter < activeTab), ...futureLineups]);
@@ -62,11 +79,10 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
       setSelectedForSwap(lineupItem);
     } else {
       if (selectedForSwap.id === lineupItem.id) {
-        setSelectedForSwap(null); // toggle off
+        setSelectedForSwap(null);
         return;
       }
       
-      // Perform swap
       const newLineups = [...lineups];
       const item1 = newLineups.find(l => l.id === selectedForSwap.id);
       const item2 = newLineups.find(l => l.id === lineupItem.id);
@@ -84,7 +100,7 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
 
   const renderPitchPosition = (position: string, top: string, left: string) => {
     const lineupItem = currentQuarterLineup.find(l => l.position === position);
-    const player = lineupItem ? mockPlayers.find(p => p.id === lineupItem.player_id) : null;
+    const player = lineupItem ? players.find(p => p.id === lineupItem.player_id) : null;
     const isSelected = selectedForSwap?.id === lineupItem?.id;
 
     return (
@@ -128,6 +144,10 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
     );
   };
 
+  if (authLoading || isLoading) {
+    return <div style={{ padding: '4rem', textAlign: 'center' }}>Loading Game Dashboard...</div>;
+  }
+
   return (
     <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '2rem' }}>
       
@@ -135,23 +155,27 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
       <Card glass style={{ height: 'calc(100vh - 120px)', overflowY: 'auto' }}>
         <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>Attendance</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {mockPlayers.map(player => {
-            const att = attendance.find(a => a.player_id === player.id);
-            const isPresent = att?.is_present || false;
-            return (
-              <div key={player.id} style={{ display: 'flex', flexDirection: 'column', padding: '1rem', backgroundColor: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span style={{ fontWeight: 600 }}>{player.name}</span>
-                  <Toggle checked={isPresent} onChange={(val) => handleAttendanceChange(player.id, val)} />
+          {players.length === 0 ? (
+            <div style={{ color: 'var(--foreground-muted)' }}>No active players found in the roster.</div>
+          ) : (
+            players.map(player => {
+              const att = attendance.find(a => a.player_id === player.id);
+              const isPresent = att?.is_present || false;
+              return (
+                <div key={player.id} style={{ display: 'flex', flexDirection: 'column', padding: '1rem', backgroundColor: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <span style={{ fontWeight: 600 }}>{player.name}</span>
+                    <Toggle checked={isPresent} onChange={(val) => handleAttendanceChange(player.id, val)} />
+                  </div>
+                  {!isPresent && (
+                    <Button size="sm" variant="secondary" onClick={() => handleArrivedNow(player.id)}>
+                      Arrived Now
+                    </Button>
+                  )}
                 </div>
-                {!isPresent && (
-                  <Button size="sm" variant="secondary" onClick={() => handleArrivedNow(player.id)}>
-                    Arrived Now
-                  </Button>
-                )}
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </Card>
 
@@ -175,7 +199,7 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
         <Card glass style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRadius: '0 0 var(--radius-lg) var(--radius-lg)' }}>
           {selectedForSwap && (
             <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(0, 255, 128, 0.1)', border: '1px solid var(--primary)', borderRadius: '4px', textAlign: 'center' }}>
-              Select another player to swap with <strong>{mockPlayers.find(p => p.id === selectedForSwap.player_id)?.name}</strong>
+              Select another player to swap with <strong>{players.find(p => p.id === selectedForSwap.player_id)?.name}</strong>
             </div>
           )}
 
@@ -213,7 +237,7 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
             <h3 style={{ marginBottom: '1rem', color: 'var(--accent)' }}>Bench</h3>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               {currentQuarterLineup.filter(l => l.position === 'Bench').map(l => {
-                const player = mockPlayers.find(p => p.id === l.player_id);
+                const player = players.find(p => p.id === l.player_id);
                 const isSelected = selectedForSwap?.id === l.id;
                 return (
                   <div 

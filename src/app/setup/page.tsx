@@ -3,12 +3,21 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, Button, Input } from '@/components/ui';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function SetupPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+  
   const [opponent, setOpponent] = useState('');
   const [date, setDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [authLoading, user, router]);
 
   const handleStartGame = () => {
     if (!opponent || !date) {
@@ -27,9 +36,13 @@ export default function SetupPage() {
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto', marginTop: '4rem' }}>
-      <h1 style={{ fontSize: '2.5rem', marginBottom: '2rem', textAlign: 'center' }}>Start New Game</h1>
-      
-      <Card glass style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {authLoading ? (
+        <div style={{ textAlign: 'center' }}>Loading...</div>
+      ) : (
+        <>
+          <h1 style={{ fontSize: '2.5rem', marginBottom: '2rem', textAlign: 'center' }}>Start New Game</h1>
+          
+          <Card glass style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         <Input 
           label="Opponent Team" 
           placeholder="e.g. Tigers FC"
@@ -55,6 +68,8 @@ export default function SetupPage() {
           </Button>
         </div>
       </Card>
+      </>
+      )}
     </div>
   );
 }

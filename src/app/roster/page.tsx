@@ -1,33 +1,80 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, Button, Input, Modal } from '@/components/ui';
-import { Player } from '@/lib/supabase';
-
-// Mock initial data
-const initialPlayers: Player[] = [
-  { id: '1', name: 'Alex Johnson', skill_offense: 8, skill_defense: 5, skill_goalie: 3, is_active: true },
-  { id: '2', name: 'Maria Garcia', skill_offense: 9, skill_defense: 4, skill_goalie: 2, is_active: true },
-  { id: '3', name: 'James Smith', skill_offense: 6, skill_defense: 8, skill_goalie: 5, is_active: true },
-  { id: '4', name: 'Linda Davis', skill_offense: 4, skill_defense: 9, skill_goalie: 9, is_active: true },
-];
+import { Player, supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function RosterPage() {
-  const [players, setPlayers] = useState<Player[]>(initialPlayers);
+  const router = useRouter();
+  const { user, role, isLoading: authLoading } = useAuth();
+  
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Partial<Player>>({});
 
-  const handleSave = () => {
-    if (editingPlayer.id) {
-      setPlayers(players.map(p => p.id === editingPlayer.id ? { ...p, ...editingPlayer } as Player : p));
-    } else {
-      const newPlayer = {
-        ...editingPlayer,
-        id: crypto.randomUUID(),
-        is_active: true
-      } as Player;
-      setPlayers([...players, newPlayer]);
+  useEffect(() => {
+    if (!authLoading) {
+      if (role !== 'admin') {
+        router.push('/');
+      } else {
+        fetchPlayers();
+      }
     }
+  }, [authLoading, role, router]);
+
+  const fetchPlayers = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from('players').select('*').order('name');
+    if (error) {
+      console.error('Error fetching players:', error);
+    } else if (data) {
+      setPlayers(data);
+    }
+    setIsLoading(false);
+  };
+
+  const handleSave = async () => {
+    if (!editingPlayer.name) return;
+    
+    setIsLoading(true);
+    if (editingPlayer.id) {
+      // Update
+      const { error } = await supabase
+        .from('players')
+        .update({
+          name: editingPlayer.name,
+          skill_offense: editingPlayer.skill_offense,
+          skill_defense: editingPlayer.skill_defense,
+          skill_goalie: editingPlayer.skill_goalie,
+          is_active: editingPlayer.is_active
+        })
+        .eq('id', editingPlayer.id);
+        
+      if (!error) {
+        setPlayers(players.map(p => p.id === editingPlayer.id ? { ...p, ...editingPlayer } as Player : p));
+      }
+    } else {
+      // Insert
+      const newId = crypto.randomUUID();
+      const newPlayer = {
+        id: newId,
+        name: editingPlayer.name,
+        skill_offense: editingPlayer.skill_offense || 5,
+        skill_defense: editingPlayer.skill_defense || 5,
+        skill_goalie: editingPlayer.skill_goalie || 5,
+        is_active: true
+      };
+      
+      const { error } = await supabase.from('players').insert([newPlayer]);
+      
+      if (!error) {
+        setPlayers([...players, newPlayer]);
+      }
+    }
+    setIsLoading(false);
     setIsModalOpen(false);
   };
 
@@ -35,16 +82,20 @@ export default function RosterPage() {
     if (player) {
       setEditingPlayer(player);
     } else {
-      setEditingPlayer({ skill_offense: 5, skill_defense: 5, skill_goalie: 5 });
+      setEditingPlayer({ skill_offense: 5, skill_defense: 5, skill_goalie: 5, is_active: true });
     }
     setIsModalOpen(true);
   };
+
+  if (authLoading || role !== 'admin') {
+    return <div style={{ padding: '4rem', textAlign: 'center' }}>Loading...</div>;
+  }
 
   return (
     <div className="animate-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2.5rem' }}>Team Roster</h1>
-        <Button onClick={() => openEditModal()} variant="primary">Add New Player</Button>
+        <Button onClick={() => openEditModal()} variant="primary" disabled={isLoading}>Add New Player</Button>
       </div>
 
       <Card glass>
@@ -60,7 +111,13 @@ export default function RosterPage() {
             </tr>
           </thead>
           <tbody>
-            {players.map((player) => (
+            {players.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--foreground-muted)' }}>
+                  No players found. Start adding some!
+                </td>
+              </tr>
+            ) : players.map((player) => (
               <tr key={player.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background-color var(--transition-fast)' }} className="player-row">
                 <td style={{ padding: '1rem', fontWeight: 600 }}>{player.name}</td>
                 <td style={{ padding: '1rem' }}>{player.skill_offense}</td>
@@ -118,9 +175,25 @@ export default function RosterPage() {
               onChange={(e) => setEditingPlayer({ ...editingPlayer, skill_goalie: parseInt(e.target.value) })} 
             />
           </div>
+          
+          {editingPlayer.id && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={editingPlayer.is_active || false}
+                  onChange={(e) => setEditingPlayer({ ...editingPlayer, is_active: e.target.checked })}
+                />
+                Is Active
+              </label>
+            </div>
+          )}
+
           <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
             <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={handleSave}>Save Player</Button>
+            <Button variant="primary" onClick={handleSave} disabled={isLoading || !editingPlayer.name}>
+              {isLoading ? 'Saving...' : 'Save Player'}
+            </Button>
           </div>
         </div>
       </Modal>
