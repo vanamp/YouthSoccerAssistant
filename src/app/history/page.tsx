@@ -1,36 +1,87 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Card } from '@/components/ui';
+import { Card, Button, Input, Modal } from '@/components/ui';
 import { Game, supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/AuthProvider';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function HistoryPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, role, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Admin edit state
+  const [editGameId, setEditGameId] = useState<string | null>(null);
+  const [editScoreUs, setEditScoreUs] = useState<number>(0);
+  const [editScoreThem, setEditScoreThem] = useState<number>(0);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const fetchGames = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('status', 'completed')
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching games:", error.message);
+    } else if (data) {
+      setGames(data);
+    }
+    setIsLoading(false);
+  };
+
   useEffect(() => {
     if (!authLoading && user) {
-      const fetchGames = async () => {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('games')
-          .select('*')
-          .eq('status', 'completed')
-          .order('date', { ascending: false });
-
-        if (error) {
-          console.error("Error fetching games:", error.message);
-        } else if (data) {
-          setGames(data);
-        }
-        setIsLoading(false);
-      };
       fetchGames();
     }
   }, [authLoading, user]);
+
+  const handleOpenEditModal = (game: Game) => {
+    setEditGameId(game.id);
+    setEditScoreUs(game.score_us || 0);
+    setEditScoreThem(game.score_them || 0);
+  };
+
+  const handleSaveScore = async () => {
+    if (!editGameId) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('games')
+        .update({ score_us: editScoreUs, score_them: editScoreThem })
+        .eq('id', editGameId);
+      
+      if (error) throw error;
+      
+      setEditGameId(null);
+      fetchGames(); // refresh list
+    } catch (err: any) {
+      alert("Failed to update score: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleReopenGame = async (gameId: string) => {
+    if (!confirm("Are you sure you want to re-open this game? It will be moved back to your active Game Dashboard.")) return;
+    
+    try {
+      const { error } = await supabase
+        .from('games')
+        .update({ status: 'in_progress' })
+        .eq('id', gameId);
+        
+      if (error) throw error;
+      router.push(`/game/${gameId}`);
+    } catch (err: any) {
+      alert("Failed to re-open game: " + err.message);
+    }
+  };
 
   if (authLoading || isLoading) {
     return <div style={{ padding: '4rem', textAlign: 'center' }}>Loading...</div>;
@@ -91,14 +142,28 @@ export default function HistoryPage() {
                     </div>
                   </div>
                   
-                  {/* Future enhancement: Link to read-only game view */}
+                  {/* Admin Controls */}
+                  {role === 'admin' && (
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <Button size="sm" variant="ghost" onClick={() => handleOpenEditModal(game)} style={{ fontSize: '0.8rem' }}>
+                        Edit Score
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleReopenGame(game.id)} style={{ fontSize: '0.8rem', color: '#ffcc00' }}>
+                        Re-open Game
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* View Details Link */}
                   <Link href={`/game/${game.id}`} style={{ 
                     padding: '0.5rem 1rem', 
                     borderRadius: '20px', 
                     border: '1px solid var(--border)',
                     fontSize: '0.9rem',
                     color: 'var(--foreground)',
-                    textDecoration: 'none'
+                    textDecoration: 'none',
+                    display: 'block',
+                    marginTop: role === 'admin' ? '0' : '0'
                   }}>
                     View Details
                   </Link>
@@ -108,6 +173,36 @@ export default function HistoryPage() {
           })}
         </div>
       )}
+
+      {/* Edit Score Modal */}
+      <Modal isOpen={!!editGameId} onClose={() => setEditGameId(null)} title="Edit Final Score">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <p>Update the final score for this game.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <Input 
+              type="number" 
+              min="0" 
+              label="Our Score" 
+              value={editScoreUs.toString()} 
+              onChange={(e) => setEditScoreUs(parseInt(e.target.value) || 0)} 
+            />
+            <Input 
+              type="number" 
+              min="0" 
+              label="Opponent Score" 
+              value={editScoreThem.toString()} 
+              onChange={(e) => setEditScoreThem(parseInt(e.target.value) || 0)} 
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+            <Button variant="ghost" onClick={() => setEditGameId(null)}>Cancel</Button>
+            <Button variant="primary" onClick={handleSaveScore} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Score'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 }

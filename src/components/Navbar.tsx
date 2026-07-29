@@ -44,6 +44,7 @@ export function Navbar() {
           <>
             <Link href="/setup" style={{ transition: 'color var(--transition-fast)' }}>Game Setup</Link>
             <Link href="/history" style={{ transition: 'color var(--transition-fast)' }}>History</Link>
+            <Link href="/settings" style={{ transition: 'color var(--transition-fast)' }}>Settings</Link>
           </>
         )}
         

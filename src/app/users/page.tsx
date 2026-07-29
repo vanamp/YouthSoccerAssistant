@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, Button, Input } from '@/components/ui';
 import { useAuth } from '@/components/AuthProvider';
+import { isValidPassword } from '../settings/page';
 
 export default function UserManagementPage() {
   const router = useRouter();
@@ -28,6 +29,12 @@ export default function UserManagementPage() {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
+
+    if (!isValidPassword(password)) {
+      setError("Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
