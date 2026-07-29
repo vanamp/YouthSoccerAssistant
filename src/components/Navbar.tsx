@@ -33,9 +33,18 @@ export function Navbar() {
       </Link>
       <div style={{ display: 'flex', gap: '1.5rem', fontWeight: 500, alignItems: 'center' }}>
         {role === 'admin' && (
-          <Link href="/roster" style={{ transition: 'color var(--transition-fast)' }}>Roster</Link>
+          <>
+            <Link href="/roster" style={{ transition: 'color var(--transition-fast)' }}>Roster</Link>
+            <Link href="/analytics" style={{ transition: 'color var(--transition-fast)' }}>Analytics</Link>
+          </>
         )}
-        <Link href="/setup" style={{ transition: 'color var(--transition-fast)' }}>Game Setup</Link>
+        
+        {user && (
+          <>
+            <Link href="/setup" style={{ transition: 'color var(--transition-fast)' }}>Game Setup</Link>
+            <Link href="/history" style={{ transition: 'color var(--transition-fast)' }}>History</Link>
+          </>
+        )}
         
         {user ? (
           <button 

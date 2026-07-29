@@ -1,0 +1,3 @@
+ALTER TABLE games
+ADD COLUMN score_us INTEGER,
+ADD COLUMN score_them INTEGER;

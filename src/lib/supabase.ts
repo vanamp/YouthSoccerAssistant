@@ -26,6 +26,8 @@ export type Game = {
   date: string;
   opponent: string;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  score_us?: number;
+  score_them?: number;
 };
 
 export type GameAttendance = {
