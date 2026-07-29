@@ -36,6 +36,7 @@ export function Navbar() {
           <>
             <Link href="/roster" style={{ transition: 'color var(--transition-fast)' }}>Roster</Link>
             <Link href="/analytics" style={{ transition: 'color var(--transition-fast)' }}>Analytics</Link>
+            <Link href="/users" style={{ transition: 'color var(--transition-fast)' }}>Add User</Link>
           </>
         )}
         
