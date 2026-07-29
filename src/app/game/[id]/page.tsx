@@ -6,6 +6,7 @@ import { Card, Button, Toggle, Modal, Input } from '@/components/ui';
 import { Player, GameAttendance, Lineup, supabase } from '@/lib/supabase';
 import { generateLineupForQuarter, recalculateRemainingQuarters } from '@/lib/lineupGenerator';
 import { useAuth } from '@/components/AuthProvider';
+import html2canvas from 'html2canvas';
 
 export default function LiveGameDashboard({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -26,6 +27,9 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
   const [scoreUs, setScoreUs] = useState<number>(0);
   const [scoreThem, setScoreThem] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const [isDownloading, setIsDownloading] = useState(false);
+  const printRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -155,74 +159,111 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
 
   const currentQuarterLineup = lineups.filter(l => l.quarter === activeTab);
 
-  const renderPitchPosition = (position: string, top: string, left: string) => {
-    const lineupItem = currentQuarterLineup.find(l => l.position === position);
-    const player = lineupItem ? players.find(p => p.id === lineupItem.player_id) : null;
-    const isSelected = selectedForSwap?.id === lineupItem?.id;
+  const renderPitch = (quarter: number, isInteractive: boolean) => {
+    const quarterLineup = lineups.filter(l => l.quarter === quarter);
+    
+    const renderPos = (position: string, top: string, left: string) => {
+      const lineupItem = quarterLineup.find(l => l.position === position);
+      const player = lineupItem ? players.find(p => p.id === lineupItem.player_id) : null;
+      const isSelected = isInteractive && selectedForSwap?.id === lineupItem?.id;
+
+      return (
+        <div 
+          key={position}
+          onClick={() => isInteractive && lineupItem && handleSwapClick(lineupItem)}
+          style={{
+            position: 'absolute',
+            top, left,
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            cursor: (isInteractive && lineupItem) ? 'pointer' : 'default',
+            transition: 'transform var(--transition-fast)',
+            zIndex: 10
+          }}
+        >
+          <div style={{
+            width: '48px', height: '48px',
+            borderRadius: '50%',
+            backgroundColor: isSelected ? 'var(--accent)' : 'var(--surface)',
+            border: `2px solid ${isSelected ? '#ffffff' : 'var(--primary)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 'bold', fontSize: '0.8rem',
+            boxShadow: isSelected ? '0 0 15px var(--accent)' : '0 4px 10px rgba(0,0,0,0.5)',
+            color: isSelected ? '#000' : 'inherit'
+          }}>
+            {position}
+          </div>
+          <div style={{
+            marginTop: '0.5rem',
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            color: '#fff',
+            padding: '0.25rem 0.5rem',
+            borderRadius: '4px',
+            fontSize: '0.8rem',
+            whiteSpace: 'nowrap'
+          }}>
+            {player ? player.name.split(' ')[0] : 'Empty'}
+          </div>
+        </div>
+      );
+    };
 
     return (
-      <div 
-        key={position}
-        onClick={() => lineupItem && handleSwapClick(lineupItem)}
-        style={{
-          position: 'absolute',
-          top, left,
-          transform: 'translate(-50%, -50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          cursor: lineupItem ? 'pointer' : 'default',
-          transition: 'transform var(--transition-fast)',
-          zIndex: 10
-        }}
-      >
-        <div style={{
-          width: '48px', height: '48px',
-          borderRadius: '50%',
-          backgroundColor: isSelected ? 'var(--accent)' : 'var(--surface)',
-          border: `2px solid ${isSelected ? '#ffffff' : 'var(--primary)'}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 'bold', fontSize: '0.8rem',
-          boxShadow: isSelected ? '0 0 15px var(--accent)' : '0 4px 10px rgba(0,0,0,0.5)'
-        }}>
-          {position}
-        </div>
-        <div style={{
-          marginTop: '0.5rem',
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          padding: '0.25rem 0.5rem',
-          borderRadius: '4px',
-          fontSize: '0.8rem',
-          whiteSpace: 'nowrap'
-        }}>
-          {player ? player.name.split(' ')[0] : 'Empty'}
-        </div>
+      <div style={{ 
+        position: 'relative', 
+        width: '100%', 
+        height: '500px', 
+        backgroundColor: '#1a472a', // deep pitch green
+        borderRadius: '12px',
+        border: '2px solid rgba(255,255,255,0.2)',
+        overflow: 'hidden',
+        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.03) 40px, rgba(255,255,255,0.03) 80px)'
+      }}>
+        {/* Pitch Lines */}
+        <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', background: 'rgba(255,255,255,0.3)', transform: 'translateY(-50%)' }} />
+        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '100px', height: '100px', border: '2px solid rgba(255,255,255,0.3)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }} />
+        <div style={{ position: 'absolute', bottom: 0, left: '25%', right: '25%', height: '80px', border: '2px solid rgba(255,255,255,0.3)', borderBottom: 'none' }} />
+        <div style={{ position: 'absolute', top: 0, left: '25%', right: '25%', height: '80px', border: '2px solid rgba(255,255,255,0.3)', borderTop: 'none' }} />
+        
+        {/* Players */}
+        {renderPos('LF', '20%', '25%')}
+        {renderPos('CF', '15%', '50%')}
+        {renderPos('RF', '20%', '75%')}
+        
+        {renderPos('LD', '60%', '25%')}
+        {renderPos('CD', '65%', '50%')}
+        {renderPos('RD', '60%', '75%')}
+        
+        {renderPos('Goalie', '90%', '50%')}
       </div>
     );
   };
 
-  const handleDownloadLineup = () => {
-    let csvContent = "Quarter,Position,Player\n";
-    
-    const sortedLineups = [...lineups].sort((a, b) => {
-      if (a.quarter !== b.quarter) return a.quarter - b.quarter;
-      return a.position.localeCompare(b.position);
-    });
-
-    sortedLineups.forEach(l => {
-      const player = players.find(p => p.id === l.player_id);
-      const playerName = player ? player.name.replace(/,/g, '') : "Empty"; // sanitize commas
-      csvContent += `${l.quarter},${l.position},${playerName}\n`;
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `game_lineups.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadLineup = async () => {
+    if (!printRef.current) return;
+    try {
+      setIsDownloading(true);
+      
+      const canvas = await html2canvas(printRef.current, {
+        backgroundColor: '#0a0a0a',
+        scale: 2
+      });
+      
+      const image = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.setAttribute("href", image);
+      link.setAttribute("download", `game_lineups_Q1-Q4.png`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Failed to generate image", err);
+      alert("Failed to generate image.");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (authLoading || isLoading) {
@@ -234,7 +275,9 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2.5rem' }}>Game Dashboard</h1>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <Button onClick={handleDownloadLineup} variant="ghost">Download Lineup</Button>
+          <Button onClick={handleDownloadLineup} variant="ghost" disabled={isDownloading}>
+            {isDownloading ? 'Generating Image...' : 'Download Lineup'}
+          </Button>
           <Button onClick={() => setIsFinishModalOpen(true)} variant="primary">Finish Game</Button>
         </div>
       </div>
@@ -294,33 +337,7 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
             )}
 
             {/* Soccer Pitch Visual */}
-            <div style={{ 
-              position: 'relative', 
-              width: '100%', 
-              height: '500px', 
-              backgroundColor: '#1a472a', // deep pitch green
-              borderRadius: '12px',
-              border: '2px solid rgba(255,255,255,0.2)',
-              overflow: 'hidden',
-              backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.03) 40px, rgba(255,255,255,0.03) 80px)'
-            }}>
-              {/* Pitch Lines */}
-              <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', background: 'rgba(255,255,255,0.3)', transform: 'translateY(-50%)' }} />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '100px', height: '100px', border: '2px solid rgba(255,255,255,0.3)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }} />
-              <div style={{ position: 'absolute', bottom: 0, left: '25%', right: '25%', height: '80px', border: '2px solid rgba(255,255,255,0.3)', borderBottom: 'none' }} />
-              <div style={{ position: 'absolute', top: 0, left: '25%', right: '25%', height: '80px', border: '2px solid rgba(255,255,255,0.3)', borderTop: 'none' }} />
-              
-              {/* Players */}
-              {renderPitchPosition('LF', '20%', '25%')}
-              {renderPitchPosition('CF', '15%', '50%')}
-              {renderPitchPosition('RF', '20%', '75%')}
-              
-              {renderPitchPosition('LD', '60%', '25%')}
-              {renderPitchPosition('CD', '65%', '50%')}
-              {renderPitchPosition('RD', '60%', '75%')}
-              
-              {renderPitchPosition('Goalie', '90%', '50%')}
-            </div>
+            {renderPitch(activeTab, true)}
             
             {/* Bench */}
             <div style={{ marginTop: '2rem' }}>
@@ -388,6 +405,32 @@ export default function LiveGameDashboard({ params }: { params: { id: string } }
           </div>
         </div>
       </Modal>
+
+      {/* Hidden container for html2canvas generation */}
+      <div 
+        style={{ 
+          position: 'absolute', left: '-9999px', top: 0, width: '1200px', 
+          backgroundColor: '#0a0a0a', padding: '2rem', zIndex: -1 
+        }} 
+        ref={printRef}
+      >
+        <h1 style={{ fontSize: '2.5rem', marginBottom: '2rem', textAlign: 'center', color: '#fff' }}>Game Lineups</h1>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+          {[1, 2, 3, 4].map(q => (
+            <div key={q} style={{ backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '12px' }}>
+              <h2 style={{ marginBottom: '1rem', textAlign: 'center', color: '#fff' }}>Quarter {q}</h2>
+              {renderPitch(q, false)}
+              <div style={{ marginTop: '1rem', color: '#fff' }}>
+                <strong style={{ color: 'var(--accent)' }}>Bench:</strong>{' '}
+                {lineups.filter(l => l.quarter === q && l.position === 'Bench').map(l => {
+                  const p = players.find(player => player.id === l.player_id);
+                  return p?.name;
+                }).filter(Boolean).join(', ') || 'None'}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
     </div>
   );
