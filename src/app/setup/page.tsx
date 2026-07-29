@@ -5,6 +5,23 @@ import { useRouter } from 'next/navigation';
 import { Card, Button, Input } from '@/components/ui';
 import { useAuth } from '@/components/AuthProvider';
 
+import inputStyles from '@/components/ui/Input.module.css';
+
+const generateTimeOptions = () => {
+  const options = [];
+  for (let i = 0; i < 24; i++) {
+    for (let j = 0; j < 60; j += 15) {
+      const hour = i === 0 ? 12 : i > 12 ? i - 12 : i;
+      const ampm = i < 12 ? 'AM' : 'PM';
+      const minute = j === 0 ? '00' : j;
+      const timeString = `${hour}:${minute} ${ampm}`;
+      const value = `${i.toString().padStart(2, '0')}:${j.toString().padStart(2, '0')}`;
+      options.push({ label: timeString, value });
+    }
+  }
+  return options;
+};
+
 export default function SetupPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
@@ -13,6 +30,8 @@ export default function SetupPage() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const timeOptions = React.useMemo(() => generateTimeOptions(), []);
 
   React.useEffect(() => {
     if (!authLoading && !user) {
@@ -58,13 +77,19 @@ export default function SetupPage() {
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
-          <Input 
-            type="time" 
-            step={900}
-            label="Game Time" 
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
+          <div className={inputStyles.container}>
+            <label className={inputStyles.label}>Game Time</label>
+            <select 
+              className={inputStyles.input} 
+              value={time} 
+              onChange={(e) => setTime(e.target.value)}
+            >
+              <option value="" disabled>Select time...</option>
+              {timeOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         
         <div style={{ marginTop: '1rem' }}>
