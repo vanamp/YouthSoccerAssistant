@@ -336,8 +336,9 @@ export default function RosterPage() {
         isOpen={isBulkModalOpen}
         onClose={() => setIsBulkModalOpen(false)}
         title="Bulk Add Players"
+        maxWidth="800px"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', minWidth: '60vw', maxWidth: '800px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px' }}>
             <div>

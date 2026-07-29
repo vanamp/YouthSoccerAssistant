@@ -9,9 +9,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  maxWidth?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, maxWidth }) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -30,6 +31,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
       <div 
         className={`${styles.modal} animate-fade-in`} 
         onClick={(e) => e.stopPropagation()}
+        style={maxWidth ? { maxWidth } : undefined}
       >
         <div className={styles.header}>
           <h2 className={styles.title}>{title}</h2>
