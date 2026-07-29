@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+
+:root {
+  /* HSL Tailored Colors */
+  --bg-h: 220;
+  --bg-s: 15%;
+  --bg-l: 8%; /* Very dark blueish grey */
+  --background: hsl(var(--bg-h), var(--bg-s), var(--bg-l));
+  
+  --fg-h: 220;
+  --fg-s: 10%;
+  --fg-l: 95%;
+  --foreground: hsl(var(--fg-h), var(--fg-s), var(--fg-l));
+  
+  --primary-h: 150;
+  --primary-s: 100%;
+  --primary-l: 45%; /* Neon Green */
+  --primary: hsl(var(--primary-h), var(--primary-s), var(--primary-l));
+  --primary-foreground: #000000;
+  
+  --secondary-h: 250;
+  --secondary-s: 80%;
+  --secondary-l: 60%; /* Vibrant Purple */
+  --secondary: hsl(var(--secondary-h), var(--secondary-s), var(--secondary-l));
+  --secondary-foreground: #ffffff;
+  
+  --accent-h: 190;
+  --accent-s: 90%;
+  --accent-l: 55%; /* Cyan */
+  --accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));
+
+  --surface-h: 220;
+  --surface-s: 15%;
+  --surface-l: 12%;
+  --surface: hsl(var(--surface-h), var(--surface-s), var(--surface-l));
+  
+  --border: hsl(var(--surface-h), var(--surface-s), 20%);
+  
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glass-blur: blur(12px);
+  
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  
+  /* Animations */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Force dark mode by default for premium feel */
+html, body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-lg);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 0 0 rgba(0, 255, 128, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(0, 255, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 255, 128, 0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-bounce) forwards;
+}
+
+/* Base resets */
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--accent);
+}
