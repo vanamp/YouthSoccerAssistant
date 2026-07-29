@@ -11,6 +11,7 @@ export default function SetupPage() {
   
   const [opponent, setOpponent] = useState('');
   const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   React.useEffect(() => {
@@ -20,7 +21,7 @@ export default function SetupPage() {
   }, [authLoading, user, router]);
 
   const handleStartGame = () => {
-    if (!opponent || !date) {
+    if (!opponent || !date || !time) {
       alert('Please fill in all fields');
       return;
     }
@@ -49,12 +50,22 @@ export default function SetupPage() {
           value={opponent}
           onChange={(e) => setOpponent(e.target.value)}
         />
-        <Input 
-          type="datetime-local" 
-          label="Game Date & Time" 
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <Input 
+            type="date" 
+            label="Game Date" 
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <Input 
+            type="time" 
+            step={900}
+            label="Game Time" 
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
+        </div>
         
         <div style={{ marginTop: '1rem' }}>
           <Button 
